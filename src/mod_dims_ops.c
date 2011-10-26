@@ -68,11 +68,30 @@ dims_strip_operation (dims_request_rec *d, char *args, char **err) {
 }
 
 apr_status_t
+dims_liquid_rescale_operation (dims_request_rec *d, char *args, char **err) {
+    MagickStatusType flags;
+    RectangleInfo rec;
+
+    ExceptionInfo ex_info;
+    flags = ParseGravityGeometry(GetImageFromMagickWand(d->wand), args, &rec, &ex_info);
+    if(!(flags & AllValues)) {
+        *err = "Parsing liquid resize geometry failed";
+        return DIMS_FAILURE;
+    }
+
+    MAGICK_CHECK(MagickLiquidRescaleImage(d->wand, rec.width, rec.height, 3, 25), d);
+
+    return DIMS_SUCCESS;
+}
+
+apr_status_t
 dims_resize_operation (dims_request_rec *d, char *args, char **err) {
     MagickStatusType flags;
     RectangleInfo rec;
 
-    flags = ParseSizeGeometry(GetImageFromMagickWand(d->wand), args, &rec);
+    ExceptionInfo ex_info;
+    flags = ParseRegionGeometry(GetImageFromMagickWand(d->wand), args, &rec, &ex_info);
+
     if(!(flags & AllValues)) {
         *err = "Parsing thumbnail geometry failed";
         return DIMS_FAILURE;
@@ -104,7 +123,8 @@ dims_thumbnail_operation (dims_request_rec *d, char *args, char **err) {
     RectangleInfo rec;
     char *resize_args = apr_psprintf(d->pool, "%s^", args);
 
-    flags = ParseSizeGeometry(GetImageFromMagickWand(d->wand), resize_args, &rec);
+    ExceptionInfo ex_info;
+    flags = ParseRegionGeometry(GetImageFromMagickWand(d->wand), args, &rec, &ex_info);
     if(!(flags & AllValues)) {
         *err = "Parsing thumbnail (resize) geometry failed";
         return DIMS_FAILURE;
@@ -121,7 +141,7 @@ dims_thumbnail_operation (dims_request_rec *d, char *args, char **err) {
 
         MAGICK_CHECK(MagickCropImage(d->wand, rec.width, rec.height, rec.x, rec.y), d);
     }
-    
+
     return DIMS_SUCCESS;
 }
 
@@ -129,8 +149,9 @@ apr_status_t
 dims_crop_operation (dims_request_rec *d, char *args, char **err) {
     MagickStatusType flags;
     RectangleInfo rec;
-    ExceptionInfo ex_info;
+    char *page = "0x0+0+0";
 
+    ExceptionInfo ex_info;
     flags = ParseGravityGeometry(GetImageFromMagickWand(d->wand), args, &rec, &ex_info);
     if(!(flags & AllValues)) {
         *err = "Parsing crop geometry failed";
@@ -138,13 +159,14 @@ dims_crop_operation (dims_request_rec *d, char *args, char **err) {
     }
 
     MAGICK_CHECK(MagickCropImage(d->wand, rec.width, rec.height, rec.x, rec.y), d);
+    MAGICK_CHECK(MagickResetImagePage(d->wand, page), d);
 
     return DIMS_SUCCESS;
 }
 
 apr_status_t
 dims_format_operation (dims_request_rec *d, char *args, char **err) {
-    MAGICK_CHECK(MagickSetFormat(d->wand, args), d);
+    MAGICK_CHECK(MagickSetImageFormat(d->wand, args), d);
     return DIMS_SUCCESS;
 }
 
@@ -156,6 +178,14 @@ dims_quality_operation (dims_request_rec *d, char *args, char **err) {
     if(quality < existing_quality) {
         MAGICK_CHECK(MagickSetImageCompressionQuality(d->wand, quality), d);
     }
+    return DIMS_SUCCESS;
+}
+
+apr_status_t
+dims_gravity_operation (dims_request_rec *d, char *args, char **err) {
+    int gravity = ParseMagickOption(MagickGravityOptions,MagickFalse,args);
+
+    MAGICK_CHECK(MagickSetImageGravity(d->wand, gravity), d);
     return DIMS_SUCCESS;
 }
 
@@ -199,7 +229,8 @@ dims_legacy_thumbnail_operation (dims_request_rec *d, char *args, char **err) {
     int x, y;
     char *resize_args = apr_psprintf(d->pool, "%s^", args);
 
-    flags = ParseSizeGeometry(GetImageFromMagickWand(d->wand), resize_args, &rec);
+    ExceptionInfo ex_info;
+    flags = ParseRegionGeometry(GetImageFromMagickWand(d->wand), resize_args, &rec, &ex_info);
     if(!(flags & AllValues)) {
         *err = "Parsing thumbnail (resize) geometry failed";
         return DIMS_FAILURE;

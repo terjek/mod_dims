@@ -1,7 +1,8 @@
 AC_PREREQ(2.60)
+
 AC_INIT(mod_dims, 3.1.0, [jeremy.collins@corp.aol.com])
-AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/mod_dims.c])
+AM_INIT_AUTOMAKE
 
 # For custom installs.
 LDFLAGS+=" -L/usr/local/lib"
